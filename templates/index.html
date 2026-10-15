@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Bus Pass System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="container">
+  <section class="hero">
+    <p class="tag">CodeAlpha Cloud Computing Internship</p>
+    <h1>Cloud-Based Bus Pass & Ticket System</h1>
+    <p>Simple online booking with server-side pricing, booking references and cloud-ready architecture.</p>
+  </section>
+
+  <section class="card">
+    <h2>Book your ticket</h2>
+    <form id="bookingForm">
+      <label>Passenger name
+        <input id="name" required placeholder="Your full name">
+      </label>
+
+      <label>Email
+        <input id="email" type="email" required placeholder="you@example.com">
+      </label>
+
+      <label>Route
+        <select id="route" required>
+          <option value="">Select route</option>
+          {% for route, price in routes.items() %}
+          <option value="{{ route }}">{{ route }} — ₹{{ price }}/seat</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>Travel date
+        <input id="date" type="date" required>
+      </label>
+
+      <label>Seats
+        <input id="seats" type="number" min="1" max="6" value="1" required>
+      </label>
+
+      <div class="price" id="price">Total: ₹0</div>
+      <button class="primary" type="submit">Confirm Booking</button>
+    </form>
+    <pre id="result"></pre>
+  </section>
+
+  <section class="card">
+    <h2>Find a booking</h2>
+    <div class="lookup">
+      <input id="lookupRef" placeholder="CAP-XXXXXXXX">
+      <button onclick="findBooking()">Search</button>
+    </div>
+    <pre id="lookupResult"></pre>
+  </section>
+
+  <section class="card info">
+    <h2>Security & reliability</h2>
+    <ul>
+      <li>Server calculates the final ticket price; client-side price cannot be trusted.</li>
+      <li>Parameterized SQL prevents SQL injection in database operations.</li>
+      <li>Booking references use secure random tokens and a database UNIQUE constraint.</li>
+      <li>Validation limits route, date and seat inputs before insertion.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const routePrices = {{ routes|tojson }};
+
+function updatePrice() {
+  const route = document.getElementById("route").value;
+  const seats = Number(document.getElementById("seats").value || 0);
+  const total = routePrices[route] ? routePrices[route] * seats : 0;
+  document.getElementById("price").textContent = `Total: ₹${total}`;
+}
+document.getElementById("route").addEventListener("change", updatePrice);
+document.getElementById("seats").addEventListener("input", updatePrice);
+
+document.getElementById("bookingForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const payload = {
+    passenger_name: document.getElementById("name").value,
+    email: document.getElementById("email").value,
+    route: document.getElementById("route").value,
+    travel_date: document.getElementById("date").value,
+    seats: Number(document.getElementById("seats").value)
+  };
+
+  const response = await fetch("/api/bookings", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  document.getElementById("result").textContent = JSON.stringify(data, null, 2);
+});
+
+async function findBooking() {
+  const ref = document.getElementById("lookupRef").value.trim();
+  if (!ref) return;
+  const response = await fetch(`/api/bookings/${encodeURIComponent(ref)}`);
+  const data = await response.json();
+  document.getElementById("lookupResult").textContent = JSON.stringify(data, null, 2);
+}
+
+updatePrice();
+</script>
+</body>
+</html>
